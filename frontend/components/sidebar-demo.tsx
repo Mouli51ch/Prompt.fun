@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { Sidebar, SidebarBody, SidebarLink, useSidebar } from "@/components/ui/sidebar"
-import { Home, Terminal, Trophy, User, Settings, LogOut, Cpu, TrendingUp, Wallet } from 'lucide-react'
+import { Home, Terminal, Trophy, User, Settings, LogOut, Cpu, TrendingUp, Wallet, Rocket } from 'lucide-react'
 import { motion } from "framer-motion"
 import Link from "next/link"
 import { useWallet } from '@aptos-labs/wallet-adapter-react'
@@ -20,7 +20,7 @@ export default function SidebarDemo() {
     },
     {
       label: "Terminal",
-      href: "/terminal-v2",
+      href: "/terminal",
       icon: <Terminal className="h-5 w-5 shrink-0 text-white/70 group-hover/sidebar:text-white" />,
     },
     {
@@ -37,6 +37,11 @@ export default function SidebarDemo() {
       label: "Trading",
       href: "/terminal",
       icon: <TrendingUp className="h-5 w-5 shrink-0 text-white/70 group-hover/sidebar:text-white" />,
+    },
+    {
+      label: "Meme Launch",
+      href: "/meme-launch",
+      icon: <Rocket className="h-5 w-5 shrink-0 text-yellow-400 group-hover/sidebar:text-white" />,
     },
     {
       label: "Settings",

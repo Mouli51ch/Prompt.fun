@@ -20,6 +20,8 @@ import {
   Crown,
   Flame,
 } from "lucide-react"
+import { useWallet } from "@/contexts/WalletContext";
+import { useLaunchToken } from "../../../test-frontend/src/hooks/aptos/useLaunchToken";
 
 interface Message {
   id: string
@@ -82,6 +84,9 @@ export default function TerminalPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
+  const { account, signAndSubmitTransaction, connected } = useWallet();
+  const { launchToken, loading: launchLoading, error: launchError, success: launchSuccess } = useLaunchToken(account, signAndSubmitTransaction);
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }
@@ -126,6 +131,29 @@ export default function TerminalPage() {
     const currentInput = input
     setInput("")
     setIsTyping(true)
+
+    // Only real contract: Launch Token
+    if (connected && (currentInput.toLowerCase().startsWith("launch ") || currentInput.toLowerCase().startsWith("create "))) {
+      const match = currentInput.match(/launch\s+(\w+)\s+(\w+)\s+(\d+)/i);
+      if (match) {
+        const [, name, symbol, supplyStr] = match;
+        const supply = parseInt(supplyStr, 10);
+        await launchToken(name, symbol, supply);
+        const contractMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          type: "copilot" as "copilot",
+          content: launchError ? `❌ ${launchError}` : launchSuccess ? `✅ ${launchSuccess}` : launchLoading ? "⏳ Launching token..." : "",
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [
+          ...prev,
+          contractMessage,
+        ]);
+        setIsTyping(false);
+        return;
+      }
+    }
+    // All other commands: simulated AI response
 
     // Check for achievements
     if (currentInput.toLowerCase().includes("buy") || currentInput.toLowerCase().includes("sell")) {
