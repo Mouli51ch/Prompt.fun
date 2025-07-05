@@ -5,8 +5,13 @@ import { Sidebar, SidebarBody, SidebarLink, useSidebar } from "@/components/ui/s
 import { Home, Terminal, Trophy, User, Settings, LogOut, Cpu, TrendingUp, Wallet } from 'lucide-react'
 import { motion } from "framer-motion"
 import Link from "next/link"
+import { useWallet } from '@aptos-labs/wallet-adapter-react'
+import { useRouter } from 'next/navigation'
+import { Button } from '@/components/ui/button'
 
 export default function SidebarDemo() {
+  const { account, disconnect } = useWallet()
+  const router = useRouter()
   const links = [
     {
       label: "Home",
@@ -54,20 +59,20 @@ export default function SidebarDemo() {
           </div>
         </div>
         <div className="border-t border-white/10 pt-4">
-          <SidebarLink
-            link={{
-              label: "Connect Wallet",
-              href: "#",
-              icon: <Wallet className="h-5 w-5 shrink-0 text-white/70 group-hover/sidebar:text-white" />,
-            }}
-          />
-          <SidebarLink
-            link={{
-              label: "Logout",
-              href: "#",
-              icon: <LogOut className="h-5 w-5 shrink-0 text-white/70 group-hover/sidebar:text-white" />,
-            }}
-          />
+          {account && (
+            <Button
+              variant="ghost"
+              className="w-full flex items-center gap-2 text-white/70 hover:text-white"
+              onClick={async (e) => {
+                e.preventDefault()
+                await disconnect()
+                router.push('/')
+              }}
+            >
+              <LogOut className="h-5 w-5 shrink-0" />
+              Logout
+            </Button>
+          )}
         </div>
       </SidebarBody>
     </Sidebar>

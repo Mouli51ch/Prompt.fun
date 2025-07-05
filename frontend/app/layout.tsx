@@ -2,6 +2,7 @@ import type React from "react"
 import type { Metadata } from "next"
 import "./globals.css"
 import { ConditionalSidebar } from "@/components/conditional-sidebar"
+import { WalletProvider } from "@/contexts/WalletContext"
 
 export const metadata: Metadata = {
   title: "prompt.fun - Launch & Trade Meme Tokens with AI",
@@ -17,7 +18,9 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body>
-        <ConditionalSidebar>{children}</ConditionalSidebar>
+        <WalletProvider>
+          <ConditionalSidebar>{children}</ConditionalSidebar>
+        </WalletProvider>
       </body>
     </html>
   )

@@ -26,6 +26,7 @@ import Link from "next/link"
 import { HoverEffect } from "@/components/ui/card-hover-effect"
 import BentoGridDemo from "@/components/bento-grid-demo"
 import { TextHoverEffect } from "@/components/ui/text-hover-effect"
+import { WalletButton } from "@/components/WalletButton"
 
 export default function ElegantLandingPage() {
   const [typedText, setTypedText] = useState("")
@@ -169,13 +170,8 @@ export default function ElegantLandingPage() {
               </a>
             </div>
 
-            {/* CTA Button */}
-            <Link href="/terminal">
-              <BorderMagicButton variant="primary">
-                Launch App
-                <ArrowRight className="w-4 h-4 ml-2" />
-              </BorderMagicButton>
-            </Link>
+            {/* Wallet Button (replaces CTA) */}
+            <WalletButton />
           </div>
         </div>
       </nav>
