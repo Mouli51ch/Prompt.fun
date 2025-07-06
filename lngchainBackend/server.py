@@ -8,16 +8,69 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from pinecone import Pinecone, ServerlessSpec, CloudProvider, AwsRegion, VectorType
 import PyPDF2
 import uuid
-from typing import List, Dict
+from typing import List, Dict, Optional
 from docx import Document
+from fastapi.middleware.cors import CORSMiddleware
+from pymongo import MongoClient
 
 # Load environment variables
 load_dotenv()
 PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
 PINECONE_INDEX_NAME = os.getenv("PINECONE_INDEX_NAME", "aptos-rag")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+MONGO_URL = os.environ.get("MONGO_URI", "mongodb://localhost:27017/")
 
 app = FastAPI()
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Or specify your frontend URL
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# MongoDB setup
+client = MongoClient(MONGO_URL)
+db = client["promptfun"]
+launched_tokens = db["launched_tokens"]
+
+# Models for marketplace endpoints
+class LaunchTokenRequest(BaseModel):
+    symbol: str
+    name: str
+    tx_hash: str
+    creator: Optional[str] = None
+    supply: Optional[int] = None
+    base_price: Optional[float] = None
+
+class LaunchedToken(BaseModel):
+    symbol: str
+    name: str
+    tx_hash: str
+    creator: Optional[str] = None
+    supply: Optional[int] = None
+    base_price: Optional[float] = None
+
+# Marketplace endpoints
+@app.post("/api/marketplace/launch", response_model=LaunchedToken)
+def launch_token(token: LaunchTokenRequest):
+    doc = token.dict()
+    launched_tokens.update_one({"symbol": doc["symbol"]}, {"$set": doc}, upsert=True)
+    return doc
+
+@app.get("/api/marketplace/launched", response_model=List[LaunchedToken])
+def get_launched_tokens():
+    tokens = list(launched_tokens.find({}, {"_id": 0}))
+    return tokens
+
+@app.get("/api/marketplace/launched/{symbol}", response_model=LaunchedToken)
+def get_launched_token(symbol: str):
+    token = launched_tokens.find_one({"symbol": symbol}, {"_id": 0})
+    if not token:
+        raise HTTPException(status_code=404, detail="Token not found")
+    return token
 
 class ChatMessage(BaseModel):
     role: str  # 'user' or 'assistant'
