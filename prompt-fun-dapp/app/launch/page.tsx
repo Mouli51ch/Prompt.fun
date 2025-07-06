@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useCallback, useEffect } from "react"
 import { Navigation } from "@/components/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -11,6 +11,103 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Rocket, MessageSquare, ExternalLink } from "lucide-react"
 import { TailwindConnectButton } from "@/components/ui/tailwind-connect-button"
+import { useWallet } from "../../contexts/WalletContext"
+
+const CONTRACT_ADDRESS = '0x0dbd9929394bf1a041494101445939f44def4c2d45b12f362b2a518595552e44'
+const NODE_URL = 'https://fullnode.testnet.aptoslabs.com/v1'
+
+// Helper to call add_xp (from test-frontend)
+async function addXP(account: any, signAndSubmitTransaction: any, user: string, xp: number) {
+  if (!account || typeof signAndSubmitTransaction !== 'function') {
+    throw new Error('Wallet not connected');
+  }
+  const payload = {
+    sender: account.address,
+    data: {
+      function: `${CONTRACT_ADDRESS}::XPSystem::add_xp`,
+      typeArguments: [],
+      functionArguments: [user, xp]
+    }
+  };
+  return await signAndSubmitTransaction(payload);
+}
+
+function useLaunchToken(account: any, signAndSubmitTransaction: any) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+
+  const initializeStore = useCallback(async () => {
+    if (!account || typeof signAndSubmitTransaction !== 'function') {
+      setError('Wallet not connected');
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const payload = {
+        sender: account.address,
+        data: {
+          function: `${CONTRACT_ADDRESS}::PromptToken::init_store`,
+          typeArguments: [],
+          functionArguments: []
+        }
+      };
+      const response = await signAndSubmitTransaction(payload);
+      if (response && response.hash) {
+        setSuccess(`Store initialized successfully! Hash: ${response.hash}`);
+      } else {
+        setError('Store initialization submitted but no hash received');
+      }
+    } catch (e: any) {
+      setError(typeof e === 'string' ? e : e?.message || JSON.stringify(e) || 'Failed to initialize store');
+    } finally {
+      setLoading(false);
+    }
+  }, [account, signAndSubmitTransaction]);
+
+  const launchToken = useCallback(async (name: string, symbol: string, supply: number) => {
+    if (!account) {
+      setError('No account available');
+      return;
+    }
+    if (typeof signAndSubmitTransaction !== 'function') {
+      setError('Transaction function not available. Please reconnect your wallet.');
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const payload = {
+        sender: account.address,
+        data: {
+          function: `${CONTRACT_ADDRESS}::PromptToken::create_token`,
+          typeArguments: [],
+          functionArguments: [name, symbol, supply]
+        }
+      };
+      const response = await signAndSubmitTransaction(payload);
+      if (response && response.hash) {
+        setSuccess(`Token launched successfully! Hash: ${response.hash}`);
+        // Award XP for launching a token
+        try {
+          await addXP(account, signAndSubmitTransaction, account.address, 100);
+        } catch (xpErr) {
+          // XP award failure is non-blocking
+        }
+      } else {
+        setError('Token launch submitted but no hash received');
+      }
+    } catch (e: any) {
+      setError(typeof e === 'string' ? e : e?.message || JSON.stringify(e) || 'Failed to launch token');
+    } finally {
+      setLoading(false);
+    }
+  }, [account, signAndSubmitTransaction]);
+
+  return { launchToken, initializeStore, loading, error, success };
+}
 
 export default function Launch() {
   const [formData, setFormData] = useState({
@@ -19,27 +116,43 @@ export default function Launch() {
     description: "",
     initialSupply: "",
     bondingCurve: "linear",
-  })
-  const [isLaunching, setIsLaunching] = useState(false)
-  const [txHash, setTxHash] = useState("")
+  });
+  const [transactionStatus, setTransactionStatus] = useState<string>("");
+  const { account, signAndSubmitTransaction } = useWallet();
+  const { launchToken, initializeStore, loading, error, success } = useLaunchToken(account, signAndSubmitTransaction);
+
+  useEffect(() => {
+    if (success) {
+      setTransactionStatus(success);
+      setTimeout(() => setTransactionStatus(""), 5000);
+    }
+    if (error) {
+      setTransactionStatus(error);
+      setTimeout(() => setTransactionStatus(""), 7000);
+    }
+  }, [success, error]);
+
+  const handleInitStore = async () => {
+    setTransactionStatus("Initializing store...");
+    await initializeStore();
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLaunching(true)
-
-    // Simulate token launch
-    setTimeout(() => {
-      setTxHash("0x1234567890abcdef1234567890abcdef12345678")
-      setIsLaunching(false)
-    }, 3000)
-  }
+    e.preventDefault();
+    if (!formData.name || !formData.symbol || !formData.initialSupply || isNaN(Number(formData.initialSupply)) || Number(formData.initialSupply) <= 0) {
+      setTransactionStatus("Please fill in all fields with valid values.");
+      return;
+    }
+    setTransactionStatus("Launching token...");
+    await launchToken(formData.name, formData.symbol, Number(formData.initialSupply));
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData((prev) => ({
       ...prev,
       [e.target.name]: e.target.value,
-    }))
-  }
+    }));
+  };
 
   return (
     <div className="flex min-h-screen">
@@ -57,6 +170,17 @@ export default function Launch() {
               Ask Copilot for Help
             </Button>
           </div>
+
+          {/* Transaction Status */}
+          {transactionStatus && (
+            <div className={`p-3 rounded text-sm mt-2 ${
+              transactionStatus.includes("successfully") ? "bg-green-100 text-green-700" :
+              transactionStatus.includes("failed") ? "bg-red-100 text-red-700" :
+              "bg-blue-100 text-blue-700"
+            }`}>
+              {transactionStatus}
+            </div>
+          )}
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Launch Form */}
@@ -122,12 +246,28 @@ export default function Launch() {
                     />
                   </div>
 
-                  <TailwindConnectButton
-                    onClick={handleSubmit}
+                  <Button
+                    type="button"
+                    onClick={handleInitStore}
                     className="w-full justify-center transition-opacity"
-                    disabled={isLaunching}
+                    disabled={loading || !account || typeof signAndSubmitTransaction !== 'function'}
                   >
-                    {isLaunching ? (
+                    {loading ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                        Initializing store...
+                      </>
+                    ) : (
+                      <>Initialize Store</>
+                    )}
+                  </Button>
+
+                  <Button
+                    type="submit"
+                    className="w-full justify-center transition-opacity"
+                    disabled={loading || !account || typeof signAndSubmitTransaction !== 'function'}
+                  >
+                    {loading ? (
                       <>
                         <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
                         Launching on Aptos...
@@ -138,20 +278,7 @@ export default function Launch() {
                         Launch Token
                       </>
                     )}
-                  </TailwindConnectButton>
-
-                  {txHash && (
-                    <div className="p-4 bg-green-500/20 border border-green-500/30 rounded-lg">
-                      <p className="text-green-400 font-medium mb-2">Token Launched Successfully! 🚀</p>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-gray-300">Transaction:</span>
-                        <code className="text-xs bg-background/50 px-2 py-1 rounded">{txHash}</code>
-                        <Button size="sm" variant="ghost">
-                          <ExternalLink className="w-3 h-3" />
-                        </Button>
-                      </div>
-                    </div>
-                  )}
+                  </Button>
                 </form>
               </CardContent>
             </Card>
@@ -220,5 +347,5 @@ export default function Launch() {
         </div>
       </main>
     </div>
-  )
+  );
 }

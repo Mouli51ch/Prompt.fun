@@ -74,7 +74,7 @@ export function Navigation() {
           </div>
 
           <div className="mt-8 pt-8 border-t border-white/10">
-            <TailwindConnectButton className="w-full justify-center">Connect Wallet</TailwindConnectButton>
+            <TailwindConnectButton className="w-full justify-center" variant="navbar">Connect Wallet</TailwindConnectButton>
           </div>
         </div>
       </nav>

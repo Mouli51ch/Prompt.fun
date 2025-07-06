@@ -13,12 +13,16 @@ import { FuturisticBackground } from "@/components/futuristic-background"
 import { TailwindConnectButton } from "@/components/ui/tailwind-connect-button"
 import { Menu, X, Brain, Rocket, TrendingUp, Zap, Check, Code, Globe } from "lucide-react"
 import { TextRevealCard, TextRevealCardDescription, TextRevealCardTitle } from "@/components/ui/text-reveal-card"
+import { useWallet } from "../contexts/WalletContext";
+import { useRouter } from "next/navigation";
 
 export function LandingPage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isScrolled, setIsScrolled] = useState(false)
   const [burstTrigger, setBurstTrigger] = useState(false)
   const [burstPosition, setBurstPosition] = useState({ x: 0, y: 0 })
+  const { account, connect, wallets = [] } = useWallet();
+  const router = useRouter();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -100,7 +104,19 @@ export function LandingPage() {
 
             {/* Wallet Connect */}
             <div className="hidden md:block">
-              <TailwindConnectButton onClick={handleButtonClick}>Connect Wallet</TailwindConnectButton>
+              <TailwindConnectButton
+                onClick={async () => {
+                  if (!account) {
+                    // Connect to Petra
+                    const petra = wallets.find((w) => w.name.toLowerCase().includes("petra"));
+                    if (petra) await connect(petra.name);
+                  }
+                  if (account) router.push("/chat");
+                }}
+                variant="navbar"
+              >
+                Connect Wallet
+              </TailwindConnectButton>
             </div>
 
             {/* Mobile Menu Button */}
@@ -159,15 +175,15 @@ export function LandingPage() {
               Built on Aptos. Driven by AI. Accessible to everyone.
             </p>
             <div className="flex justify-center">
-              <TailwindConnectButton
+              <button
                 onClick={(e) => {
-                  handleButtonClick(e)
-                  scrollToSection("copilot-preview")
+                  handleButtonClick(e);
+                  scrollToSection("copilot-preview");
                 }}
-                className="text-lg animate-pulse-glow px-8 py-4 rounded-xl shadow-lg mt-6"
+                className="relative rounded-full bg-zinc-950 px-8 py-4 text-white font-light text-lg flex items-center justify-center shadow-[0_0_10px_0_rgba(0,212,255,0.25)] border border-cyan-500/10 transition-all duration-150 hover:shadow-[0_0_16px_2px_rgba(0,212,255,0.3)] focus:outline-none text-lg animate-pulse-glow px-8 py-4 rounded-xl shadow-lg mt-6"
               >
                 Try Copilot Now
-              </TailwindConnectButton>
+              </button>
             </div>
           </AnimatedSection>
         </div>
@@ -205,11 +221,14 @@ export function LandingPage() {
 
           <AnimatedSection animation="fade-up" duration={600} delay={400}>
             <div className="flex justify-center mt-12">
-              <Link href="/chat">
-                <TailwindConnectButton onClick={handleButtonClick} className="text-lg">
-                  Start Chat
-                </TailwindConnectButton>
-              </Link>
+              <button
+                onClick={() => {
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }}
+                className="relative rounded-full bg-zinc-950 px-8 py-4 text-white font-light text-lg flex items-center justify-center shadow-[0_0_10px_0_rgba(0,212,255,0.25)] border border-cyan-500/10 transition-all duration-150 hover:shadow-[0_0_16px_2px_rgba(0,212,255,0.3)] focus:outline-none text-lg"
+              >
+                Start Chat
+              </button>
             </div>
           </AnimatedSection>
         </div>
@@ -349,11 +368,14 @@ export function LandingPage() {
               <h2 className="text-5xl font-light mb-6 neon-text tracking-tight">Ready to Prompt Your First Token?</h2>
 
               <div className="flex justify-center">
-                <Link href="/chat">
-                  <TailwindConnectButton onClick={handleButtonClick} className="text-xl animate-pulse-glow">
-                    Launch Prompt.fun
-                  </TailwindConnectButton>
-                </Link>
+                <button
+                  onClick={() => {
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }}
+                  className="relative rounded-full bg-zinc-950 px-8 py-4 text-white font-light text-xl flex items-center justify-center shadow-[0_0_10px_0_rgba(0,212,255,0.25)] border border-cyan-500/10 transition-all duration-150 hover:shadow-[0_0_16px_2px_rgba(0,212,255,0.3)] focus:outline-none animate-pulse-glow"
+                >
+                  Launch Prompt.fun
+                </button>
               </div>
 
               <p className="text-gray-400 text-lg font-light tracking-wide">

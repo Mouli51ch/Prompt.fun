@@ -2,6 +2,7 @@ import type React from "react"
 import type { Metadata } from "next"
 import "./globals.css"
 import { Poppins } from "next/font/google"
+import { WalletProvider } from "../contexts/WalletContext"
 
 const poppins = Poppins({
   subsets: ["latin"],
@@ -23,7 +24,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={poppins.variable}>{children}</body>
+      <body className={poppins.variable}>
+        <WalletProvider>{children}</WalletProvider>
+      </body>
     </html>
   )
 }
