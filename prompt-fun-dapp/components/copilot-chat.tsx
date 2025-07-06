@@ -7,6 +7,9 @@ import { Send, Sparkles, TrendingUp, Wallet, HelpCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useWallet } from "../contexts/WalletContext"
+import { useBuyToken } from "@/hooks/aptos/useBuyToken"
+import { useLaunchToken } from "@/hooks/aptos/useLaunchToken"
+import { storeLaunchedToken } from "@/lib/marketplaceApi"
 
 interface Message {
   id: string
@@ -42,8 +45,17 @@ export function CopilotChat() {
   const [input, setInput] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const { account } = useWallet()
+  const { account, signAndSubmitTransaction } = useWallet()
   const [aptBalance, setAptBalance] = useState<string | null>(null)
+  const { launchToken } = useLaunchToken(account, signAndSubmitTransaction)
+  const { launchTokenOnCurve } = useBuyToken(account, signAndSubmitTransaction)
+  const [showLaunchTokenUI, setShowLaunchTokenUI] = useState(false)
+  const [launchingToken, setLaunchingToken] = useState(false)
+  const [launchErrorMsg, setLaunchErrorMsg] = useState("")
+  const [launchName, setLaunchName] = useState("")
+  const [launchSymbol, setLaunchSymbol] = useState("")
+  const [launchSupply, setLaunchSupply] = useState(1000)
+  const [launchBasePrice, setLaunchBasePrice] = useState(1)
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -80,6 +92,11 @@ export function CopilotChat() {
 
     // Normalize message for balance queries
     const normalized = messageText.toLowerCase().replace(/[^a-z0-9 ]/gi, '').replace(/\s+/g, ' ');
+    if (normalized.includes('launch token')) {
+      setShowLaunchTokenUI(true);
+      setInput("");
+      return;
+    }
     if (account && normalized.includes('balance')) {
       const userMessage: Message = {
         id: Date.now().toString(),
@@ -294,6 +311,102 @@ export function CopilotChat() {
           </Button>
         </div>
       </div>
+
+      {showLaunchTokenUI && (
+        <div className="glow-border bg-card/50 mt-4 rounded-xl max-w-md mx-auto">
+          <div className="p-6">
+            <h2 className="font-semibold mb-2 text-lg">Launch a New Token</h2>
+            <div className="space-y-2">
+              <Input placeholder="Token Name" value={launchName} onChange={e => setLaunchName(e.target.value)} />
+              <Input placeholder="Symbol" value={launchSymbol} onChange={e => setLaunchSymbol(e.target.value.toUpperCase())} />
+              <Input type="number" placeholder="Supply" value={launchSupply} onChange={e => setLaunchSupply(Number(e.target.value))} />
+              <Input type="number" placeholder="Base Price (for Curve)" value={launchBasePrice} onChange={e => setLaunchBasePrice(Number(e.target.value))} />
+              <Button
+                className="w-full mt-2 rounded-full bg-zinc-950 px-8 py-4 text-white font-light text-lg flex items-center justify-center shadow-[0_0_10px_0_rgba(0,212,255,0.25)] border border-cyan-500/10 transition-all duration-150 hover:shadow-[0_0_16px_2px_rgba(0,212,255,0.3)] focus:outline-none"
+                disabled={launchingToken || !launchName || !launchSymbol || launchSupply <= 0 || launchBasePrice <= 0}
+                onClick={async () => {
+                  if (!account || typeof signAndSubmitTransaction !== 'function') {
+                    setLaunchErrorMsg("Wallet not connected.");
+                    return;
+                  }
+                  setLaunchingToken(true);
+                  setLaunchErrorMsg("");
+                  let timeoutId: any = null;
+                  try {
+                    const timeoutPromise = new Promise((_, reject) => {
+                      timeoutId = setTimeout(() => reject(new Error("Timeout: Launch/check took too long. Please try again or check your network.")), 30000)
+                    });
+                    // 1. Launch PromptToken (wallet prompt)
+                    const promptTokenTx = await Promise.race([
+                      launchToken(launchName, launchSymbol, launchSupply),
+                      timeoutPromise
+                    ]);
+                    // 2. Launch on BondingCurve (wallet prompt)
+                    const curveTx = await Promise.race([
+                      launchTokenOnCurve(launchSymbol, launchBasePrice),
+                      timeoutPromise
+                    ]);
+                    // 3. Only after both succeed, store in Mongo
+                    const txHash = curveTx?.hash || curveTx?.txnHash || curveTx?.transactionHash || "";
+                    const payload: any = {};
+                    if (typeof launchSymbol === "string" && launchSymbol.trim()) payload.symbol = launchSymbol.trim();
+                    if (typeof launchName === "string" && launchName.trim()) payload.name = launchName.trim();
+                    if (txHash && typeof txHash === "string" && txHash.trim()) payload.tx_hash = txHash.trim();
+                    if (account?.address) {
+                      let creatorStr: string = "";
+                      const addr = account.address;
+                      if (typeof addr === "string") {
+                        creatorStr = addr;
+                      } else if (addr && typeof addr === "object" && addr.toString) {
+                        creatorStr = addr.toString();
+                      } else if (addr && typeof addr === "object" && addr.data && Array.isArray(addr.data)) {
+                        const hex = Array.from(addr.data).map((x: number) => x.toString(16).padStart(2, "0")).join("");
+                        creatorStr = hex ? "0x" + hex : "";
+                      } else {
+                        creatorStr = String(addr);
+                      }
+                      payload.creator = creatorStr;
+                    }
+                    if (typeof launchSupply === "number" && Number.isFinite(launchSupply)) payload.supply = launchSupply;
+                    if (typeof launchBasePrice === "number" && Number.isFinite(launchBasePrice)) payload.base_price = launchBasePrice;
+                    if (!payload.symbol || !payload.name || !payload.tx_hash) {
+                      setLaunchErrorMsg("Token symbol, name, or transaction hash missing.");
+                      setLaunchingToken(false);
+                      return;
+                    }
+                    await storeLaunchedToken(payload);
+                    setShowLaunchTokenUI(false);
+                    setLaunchName("");
+                    setLaunchSymbol("");
+                    setLaunchSupply(1000);
+                    setLaunchBasePrice(1);
+                    setMessages((prev) => [
+                      ...prev,
+                      {
+                        id: (Date.now() + 2).toString(),
+                        content: `Token $${payload.symbol} launched successfully!`,
+                        isUser: false,
+                        timestamp: new Date(),
+                      },
+                    ]);
+                  } catch (err: any) {
+                    setLaunchErrorMsg(err?.message || (typeof err === "string" ? err : JSON.stringify(err)) || "Failed to launch token");
+                  } finally {
+                    if (timeoutId) clearTimeout(timeoutId);
+                    setLaunchingToken(false);
+                  }
+                }}
+              >
+                {launchingToken ? "Launching..." : "Launch Token"}
+              </Button>
+              {launchErrorMsg && <div className="text-red-500 text-xs mt-1">{launchErrorMsg}</div>}
+              <Button variant="ghost" size="sm" className="w-full mt-1" onClick={() => setShowLaunchTokenUI(false)}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -218,60 +218,60 @@ export default function Marketplace() {
                   token.symbol?.toLowerCase().includes(searchTerm.toLowerCase())
                 )
                 .map((token, index) => (
-                  <Card
-                    key={index}
-                    className="glow-border bg-card/50 hover:bg-card/70 transition-all duration-300 cursor-pointer"
-                  >
-                    <CardHeader className="pb-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full gradient-bg flex items-center justify-center">
+              <Card
+                key={index}
+                className="glow-border bg-card/50 hover:bg-card/70 transition-all duration-300 cursor-pointer"
+              >
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full gradient-bg flex items-center justify-center">
                             <span className="font-bold">{token.symbol?.[0]}</span>
-                          </div>
-                          <div>
-                            <CardTitle className="text-lg">${token.symbol}</CardTitle>
-                            <p className="text-sm text-gray-400">{token.name}</p>
-                          </div>
-                        </div>
-                        <Badge variant="default">Launched</Badge>
                       </div>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <CardTitle className="text-lg">${token.symbol}</CardTitle>
+                        <p className="text-sm text-gray-400">{token.name}</p>
+                      </div>
+                    </div>
+                        <Badge variant="default">Launched</Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4 text-sm">
                         {token.supply !== undefined && (
-                          <div>
+                    <div>
                             <p className="text-gray-400">Supply</p>
                             <p className="font-semibold">{token.supply}</p>
-                          </div>
+                    </div>
                         )}
                         {token.base_price !== undefined && (
-                          <div>
+                    <div>
                             <p className="text-gray-400">Base Price</p>
                             <p className="font-semibold">{token.base_price}</p>
-                          </div>
+                    </div>
                         )}
-                        <div>
+                    <div>
                           <p className="text-gray-400">Tx Hash</p>
                           <p className="font-semibold break-all">{token.tx_hash}</p>
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
                         <Button
                           size="sm"
                           className="flex-1 rounded-full bg-zinc-950 px-8 py-4 text-white font-light text-lg flex items-center justify-center shadow-[0_0_10px_0_rgba(0,212,255,0.25)] border border-cyan-500/10 transition-all duration-150 hover:shadow-[0_0_16px_2px_rgba(0,212,255,0.3)] focus:outline-none"
                           onClick={() => setSelectedToken(token)}
                         >
-                          Buy ${token.symbol}
+                      Buy ${token.symbol}
                         </Button>
-                        <Button size="sm" variant="outline" className="glow-border bg-transparent">
-                          <TrendingUp className="w-4 h-4" />
-                        </Button>
-                        <Button size="sm" variant="outline" className="glow-border bg-transparent">
-                          <ExternalLink className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
+                    <Button size="sm" variant="outline" className="glow-border bg-transparent">
+                      <TrendingUp className="w-4 h-4" />
+                    </Button>
+                    <Button size="sm" variant="outline" className="glow-border bg-transparent">
+                      <ExternalLink className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
                 ))
             )}
           </div>
